@@ -1,6 +1,7 @@
 import os #Librairie pour interagir avec le système d'exploitation
 import s3fs # Librairie pour interagir avec S3
 import pandas as pd # Librairie pour la manipulation de données
+print("test")
 
 #Def les codes d'accès
 def choix_user_bucket():
@@ -43,4 +44,5 @@ def export_csv (bucket, df, mode_write):
     path=str(bucket+"/"+ df)
     with fs.open(path, mode=mode_write) as file_out:
         df.to_csv(file_out, sep=";", index=False) #pour CSV, adapter si autre format
+
     print(f"Fichier exporté vers s3://{path}") #Confirmation de l'exportation
