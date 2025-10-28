@@ -26,23 +26,53 @@ def connection ():
     return fs
 
 #Importer des données
-def import_csv (bucket, file,mode_open): 
-#Nom du bucket (ademe ou user ex ldurand) - doc_name.type - mode_open qui est r pour lecture seule ou rb pour binaire
+def import_csv(file): 
+    bucket=str(input("De quel bucket voulez vous importer votre document ? (ID_user/ademe) : "))
     choix_user_bucket()
     fs=connection()
     path=str(bucket+"/"+ file)
-    with fs.open(path, mode=mode_open) as file_in:
-        df = pd.read_csv(file_in, sep=";") #pour CSV, adapter si autre format
+    a=str(input("Quel est le type de séparateur ? (,/;) : "))
+    with fs.open(path, mode="r") as file_in:
+        df = pd.read_csv(file_in, sep=a) 
     return df
 
-#Exporter données
-def export_csv (bucket, df, mode_write):
-#Nom du bucket (ademe ou user ex ldurand) - Dataframe à exporter - mode_write qui est w pour écraser ou a pour ajouter
+def import_db(file):
     choix_user_bucket()
     fs=connection()
-    path=str(bucket+"/"+ df)
+    bucket=str(input("De quel bucket voulez vous importer votre document ? (ID_user/ademe) : "))
+    path=str(bucket+"/"+ file)
+    import sqlite3
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        #Télécharger la base depuis S3
+        tmp.write(fs.open(path, "rb").read())
+        tmp_path = tmp.name
+    #Connexion à la base locale temporaire
+    conn = sqlite3.connect(tmp_path)
+    table_name = input("Nom de la table précisément à importer : ")
+    df = pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
+    conn.close()
+    return df
+
+
+#Exporter données
+def export_csv (df):
+    name=str(input("Quel nom à donner au fichier ? (name.csv) : "))
+    bucket=str(input("Dans quel bucket voulez vous exporter votre document ? (ID_user/ademe) : "))
+    mode_write=str(input("Voulez vous écraser le précedent fichier ou simplement ajouter celui-ci ? (w/a) : "))
+    choix_user_bucket()
+    fs=connection()
+    path=str(bucket+"/"+ name)
     with fs.open(path, mode=mode_write) as file_out:
         df.to_csv(file_out, sep=";", index=False) #pour CSV, adapter si autre format
-
     print(f"Fichier exporté vers s3://{path}") #Confirmation de l'exportation
 
+def export_db(local_db):
+    name=str(input("Quel nom à donner au fichier ? (name.db) : "))
+    bucket = input("Dans quel bucket voulez-vous exporter votre base ? (ID_user/ademe) : ")
+    choix_user_bucket()
+    fs = connection()
+    path = f"{bucket}/{name}"  # inclure .db si souhaité
+    with open(local_db, "rb") as src, fs.open(path, "wb") as dst:
+        dst.write(src.read())
+    print(f"Base exportée vers s3://{path}")
